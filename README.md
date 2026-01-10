@@ -1,12 +1,8 @@
-<p align="center">
-  <h1 align="center">🧭 Captain Search</h1>
-  <p align="center">
-    <strong>One MCP server for all your search needs</strong>
-  </p>
-  <p align="center">
-    A unified search API that aggregates multiple providers with automatic load balancing, fallback, and MCP support.
-  </p>
-</p>
+<div align="center">
+  <h1>🧭 Captain Search</h1>
+  <p><strong>One MCP server for all your web search needs</strong></p>
+  <p>Aggregate multiple search providers with automatic load balancing and fallback</p>
+</div>
 
 <p align="center">
   <a href="https://github.com/mnm-matin/captain-search/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
@@ -18,60 +14,155 @@
 
 ## Why Captain Search?
 
-Most AI agents need web search. But each search API has different rate limits, pricing, and quirks. **Captain Search** solves this by:
-
-- 🔄 **Auto-rotating** between providers based on their free tier limits
-- ⚡ **Automatic fallback** if one provider fails
-- 🔗 **Parallel search** across all providers for comprehensive results  
-- 📄 **Built-in web scraping** via Jina Reader
-- 🔐 **Optional auth** for remote deployment
-
----
-
-## Quickstart (30 seconds)
-
-### 1. Install
-
-```bash
-pip install captain-search
-```
-
-### 2. Set ONE API key
-
-```bash
-export SERPER_API_KEY=your_key_here
-```
-
-### 3. Run
-
-```bash
-captain-search
-```
-
-That's it! You now have a working MCP server. Add more providers for redundancy.
+- 🔄 **Auto-rotation** between providers based on free tier limits
+- ⚡ **Automatic fallback** when a provider fails  
+- 🔗 **Parallel search** across all providers for comprehensive results
+- 📄 **Built-in webpage extraction** via Jina Reader
 
 ---
 
 ## Supported Providers
 
-You only need **ONE** provider to get started. Add more for redundancy and higher limits.
+You only need **one** provider to get started. Add more for redundancy.
 
-| Provider | Free Tier | Rate Limit | Best For | Get API Key |
-|----------|-----------|------------|----------|-------------|
-| **Serper** | 2,500/month | 50 req/sec | Google results, fast | [serper.dev](https://serper.dev) |
-| **Brave** | 2,000/month | 1 req/sec | Privacy-focused, independent index | [brave.com/search/api](https://brave.com/search/api/) |
-| **Tavily** | 1,000/month | — | AI-optimized, clean results | [tavily.com](https://app.tavily.com) |
-| **Exa** | $10 credit | — | Semantic/neural search | [dashboard.exa.ai](https://dashboard.exa.ai/api-keys) |
-| **Perplexity** | $5/mo credit | — | AI-powered answers | [perplexity.ai](https://www.perplexity.ai/settings/api) |
-| **Jina** | 1M tokens | 20 req/min | Web scraping, PDF extraction | [jina.ai](https://jina.ai/reader/) |
+| Provider | Free Tier | Best For | Get API Key |
+|----------|-----------|----------|-------------|
+| **Serper** | 2,500/month | Google results | [serper.dev](https://serper.dev) |
+| **Brave** | 2,000/month | Independent index | [brave.com/search/api](https://brave.com/search/api/) |
+| **Tavily** | 1,000/month | AI-optimized results | [app.tavily.com](https://app.tavily.com) |
+| **Exa** | $10 credit | Neural/semantic search | [dashboard.exa.ai](https://dashboard.exa.ai/api-keys) |
+| **Perplexity** | $5/mo credit | AI-powered answers | [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api) |
+| **Jina** | 1M tokens | Webpage/PDF extraction | [jina.ai/reader](https://jina.ai/reader/) |
 
-> 💡 **Tip:** Serper + Brave gives you 4,500 free searches/month with automatic failover.
+> 💡 **Tip:** Serper + Brave = 4,500 free searches/month with automatic failover
 
 ---
 
-## MCP Tools
+## Installation
 
-Captain Search exposes 3 tools to your AI assistant:
+<details>
+<summary><b>Install in Cursor</b></summary>
+
+Go to: `Settings` → `Cursor Settings` → `MCP` → `Add new global MCP server`
+
+Add to your `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "captain-search": {
+      "command": "uvx",
+      "args": ["captain-search"],
+      "env": {
+        "SERPER_API_KEY": "your-key-here"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Install in Claude Desktop</b></summary>
+
+Add to your Claude Desktop config:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "captain-search": {
+      "command": "uvx",
+      "args": ["captain-search"],
+      "env": {
+        "SERPER_API_KEY": "your-key-here",
+        "BRAVE_API_KEY": "your-key-here"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Install in Claude Code</b></summary>
+
+```bash
+claude mcp add captain-search -e SERPER_API_KEY=your-key -- uvx captain-search
+```
+
+</details>
+
+<details>
+<summary><b>Install in VS Code</b></summary>
+
+Add to your User Settings (JSON) via `Ctrl+Shift+P` → `Preferences: Open User Settings (JSON)`:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "captain-search": {
+        "command": "uvx",
+        "args": ["captain-search"],
+        "env": {
+          "SERPER_API_KEY": "your-key-here"
+        }
+      }
+    }
+  }
+}
+```
+
+Or add to `.vscode/mcp.json` in your workspace to share with your team.
+
+</details>
+
+<details>
+<summary><b>Install in Windsurf</b></summary>
+
+Add to your `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "captain-search": {
+      "command": "uvx",
+      "args": ["captain-search"],
+      "env": {
+        "SERPER_API_KEY": "your-key-here"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Using pip instead of uvx</b></summary>
+
+If you prefer pip:
+
+```bash
+pip install captain-search
+```
+
+Then replace `"command": "uvx", "args": ["captain-search"]` with:
+
+```json
+"command": "captain-search"
+```
+
+</details>
+
+---
+
+## Available Tools
 
 | Tool | Description |
 |------|-------------|
@@ -81,117 +172,9 @@ Captain Search exposes 3 tools to your AI assistant:
 
 ---
 
-## Configuration
+## Running as a Remote Server
 
-### Claude Desktop / Claude Code
-
-Add to your config file:
-
-<details>
-<summary><strong>📍 Config file locations</strong></summary>
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux:** `~/.config/Claude/claude_desktop_config.json`
-
-</details>
-
-```json
-{
-  "mcpServers": {
-    "captain-search": {
-      "command": "captain-search",
-      "env": {
-        "SERPER_API_KEY": "your_serper_key",
-        "BRAVE_API_KEY": "your_brave_key"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-Add to `.cursor/mcp.json` in your project or global config:
-
-```json
-{
-  "mcpServers": {
-    "captain-search": {
-      "command": "captain-search",
-      "env": {
-        "SERPER_API_KEY": "your_serper_key"
-      }
-    }
-  }
-}
-```
-
-### VS Code (Copilot)
-
-Add to your User Settings (JSON) or `.vscode/mcp.json`:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "captain-search": {
-        "command": "captain-search",
-        "env": {
-          "SERPER_API_KEY": "your_serper_key"
-        }
-      }
-    }
-  }
-}
-```
-
----
-
-## 🤖 Agent Setup Instructions
-
-Copy and paste this to your AI assistant to help it set up Captain Search:
-
-<details>
-<summary><strong>📋 Click to copy setup instructions for your agent</strong></summary>
-
-```
-I want you to help me set up Captain Search, an MCP server for web search.
-
-Here's what I need:
-1. Install it: pip install captain-search (or uv pip install captain-search)
-2. I need to set at least ONE of these API keys as environment variables:
-   - SERPER_API_KEY (get free at serper.dev - 2,500/month)
-   - BRAVE_API_KEY (get free at brave.com/search/api - 2,000/month)  
-   - TAVILY_API_KEY (get free at tavily.com - 1,000/month)
-3. Add to my MCP config (Claude Desktop, Cursor, or VS Code):
-
-{
-  "mcpServers": {
-    "captain-search": {
-      "command": "captain-search",
-      "env": {
-        "SERPER_API_KEY": "my_key_here"
-      }
-    }
-  }
-}
-
-Once configured, you'll have access to:
-- search_web: Search the web with automatic provider rotation
-- search_multi: Search all providers in parallel  
-- fetch_webpage: Extract content from URLs
-
-Help me get this set up!
-```
-
-</details>
-
----
-
-## Remote Server Mode
-
-Run Captain Search as a remote HTTP/SSE server for teams or cloud deployment:
+For teams or cloud deployment:
 
 ```bash
 # HTTP mode
@@ -201,16 +184,16 @@ captain-search --transport http --port 8000
 captain-search --transport sse --port 8000
 ```
 
-### Securing with Auth Token
+### With Authentication
 
 ```bash
 export MCP_AUTH_TOKEN="your-secret-token"
 captain-search --transport http --port 8000
 ```
 
-Clients connect via:
+Connect via:
 - Header: `Authorization: Bearer your-secret-token`
-- Query param: `http://host:8000/mcp?token=your-secret-token`
+- Query: `http://host:8000/mcp?token=your-secret-token`
 
 ### Claude Desktop (Remote)
 
@@ -228,29 +211,25 @@ Clients connect via:
 
 ## Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `SERPER_API_KEY` | Serper.dev API key | At least one |
-| `BRAVE_API_KEY` | Brave Search API key | At least one |
-| `TAVILY_API_KEY` | Tavily API key | At least one |
-| `EXA_API_KEY` | Exa AI API key | Optional |
-| `PERPLEXITY_API_KEY` | Perplexity API key | Optional |
-| `JINA_API_KEY` | Jina Reader API key | Optional (works without) |
-| `MCP_AUTH_TOKEN` | Bearer token for remote mode | Optional |
+| Variable | Required |
+|----------|----------|
+| `SERPER_API_KEY` | At least one provider |
+| `BRAVE_API_KEY` | At least one provider |
+| `TAVILY_API_KEY` | At least one provider |
+| `EXA_API_KEY` | Optional |
+| `PERPLEXITY_API_KEY` | Optional |
+| `JINA_API_KEY` | Optional (works without) |
+| `MCP_AUTH_TOKEN` | For remote mode |
 
 ---
 
-## How Provider Selection Works
+## How It Works
 
-1. **Weighted Random**: Providers are selected based on weights (default: proportional to free tier limits)
-2. **Automatic Fallback**: If selected provider fails, others are tried in order
-3. **Multi-Provider**: `search_multi` queries all enabled providers in parallel
+1. **Weighted Selection**: Providers chosen based on free tier limits
+2. **Automatic Fallback**: If one fails, tries the next
+3. **Multi-Provider**: `search_multi` queries all in parallel
 
-Default weights:
-- Serper: 42% (2,500/month)
-- Brave: 33% (2,000/month)
-- Tavily: 17% (1,000/month)
-- Perplexity: 8%
+Default weights: Serper (42%) → Brave (33%) → Tavily (17%) → Perplexity (8%)
 
 Customize via `config.yaml`:
 
@@ -262,9 +241,6 @@ providers:
   brave:
     weight: 30
     enabled: true
-  tavily:
-    weight: 20
-    enabled: true
 ```
 
 ---
@@ -274,7 +250,7 @@ providers:
 ```bash
 docker build -t captain-search .
 
-docker run -d -p 8000:8000 \
+docker run -p 8000:8000 \
   -e SERPER_API_KEY=your_key \
   -e MCP_AUTH_TOKEN=your_secret \
   captain-search --transport http --port 8000
@@ -288,12 +264,7 @@ docker run -d -p 8000:8000 \
 git clone https://github.com/mnm-matin/captain-search.git
 cd captain-search
 uv pip install -e ".[dev]"
-
-# Run tests
 pytest
-
-# Lint
-ruff check src/
 ```
 
 ---
@@ -301,12 +272,6 @@ ruff check src/
 ## License
 
 MIT License - see [LICENSE](LICENSE)
-
----
-
-## Contributing
-
-Contributions welcome! Feel free to open issues or submit PRs.
 
 ---
 
