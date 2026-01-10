@@ -1,0 +1,44 @@
+# Captain Search Configuration
+# Customize provider weights and settings here
+
+providers:
+  # Serper.dev - Google search results
+  # Free tier: 2,500 searches/month
+  serper:
+    weight: 42  # 42% chance of being selected
+    enabled: true
+
+  # Brave Search
+  # Free tier: 2,000 queries/month
+  brave:
+    weight: 33  # 33% chance of being selected
+    enabled: true
+
+  # Tavily - AI-optimized search
+  # Free tier: 1,000 searches/month (per key)
+  tavily:
+    weight: 17  # 17% chance of being selected
+    enabled: true
+
+  # Perplexity
+  # Requires Pro subscription (~$5/month credit)
+  perplexity:
+    weight: 8  # 8% chance of being selected
+    enabled: true
+
+  # Jina Reader (for webpage/PDF extraction)
+  # Free tier: 20 requests/minute
+  jina:
+    weight: 0  # Not used for search selection
+    enabled: true
+
+  # Exa.ai - AI-powered semantic search via MCP
+  # FREE via MCP endpoint (no API key required!)
+  # Optional API key may provide better results
+  exa:
+    weight: 15  # 15% chance of being selected
+    enabled: true
+
+# Weights are relative - they determine probability of selection
+# Higher weight = more likely to be selected
+# Adjust based on your usage patterns and quotas
