@@ -134,3 +134,6 @@ Thumbs.db
 config.yaml
 config.yml
 *.local.yaml
+
+# Context folder (local notes/planning)
+context/
