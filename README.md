@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://github.com/mnm-matin/captain-search/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://pypi.org/project/captain-search/"><img src="https://img.shields.io/pypi/v/captain-search.svg" alt="PyPI"></a>
   <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python"></a>
 </p>
 
@@ -51,8 +50,8 @@ Add to your `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "captain-search": {
-      "command": "uvx",
-      "args": ["captain-search"],
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
         "SERPER_API_KEY": "your-key-here"
       }
@@ -75,8 +74,8 @@ Add to your Claude Desktop config:
 {
   "mcpServers": {
     "captain-search": {
-      "command": "uvx",
-      "args": ["captain-search"],
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
         "SERPER_API_KEY": "your-key-here",
         "BRAVE_API_KEY": "your-key-here"
@@ -92,7 +91,7 @@ Add to your Claude Desktop config:
 <summary><b>Install in Claude Code</b></summary>
 
 ```bash
-claude mcp add captain-search -e SERPER_API_KEY=your-key -- uvx captain-search
+claude mcp add captain-search -e SERPER_API_KEY=your-key -- uv run --directory /path/to/captain-search captain-search
 ```
 
 </details>
@@ -107,8 +106,8 @@ Add to your User Settings (JSON) via `Ctrl+Shift+P` → `Preferences: Open User 
   "mcp": {
     "servers": {
       "captain-search": {
-        "command": "uvx",
-        "args": ["captain-search"],
+        "command": "uv",
+        "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
         "env": {
           "SERPER_API_KEY": "your-key-here"
         }
@@ -131,8 +130,8 @@ Add to your `~/.codeium/windsurf/mcp_config.json`:
 {
   "mcpServers": {
     "captain-search": {
-      "command": "uvx",
-      "args": ["captain-search"],
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
         "SERPER_API_KEY": "your-key-here"
       }
@@ -144,19 +143,15 @@ Add to your `~/.codeium/windsurf/mcp_config.json`:
 </details>
 
 <details>
-<summary><b>Using pip instead of uvx</b></summary>
-
-If you prefer pip:
+<summary><b>Getting Started</b></summary>
 
 ```bash
-pip install captain-search
+git clone https://github.com/mnm-matin/captain-search.git
+cd captain-search
+uv sync
 ```
 
-Then replace `"command": "uvx", "args": ["captain-search"]` with:
-
-```json
-"command": "captain-search"
-```
+Then update `/path/to/captain-search` in the configs above to your actual path.
 
 </details>
 
