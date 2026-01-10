@@ -53,7 +53,12 @@ Add to your `~/.cursor/mcp.json`:
       "command": "uv",
       "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
-        "SERPER_API_KEY": "your-key-here"
+        "SERPER_API_KEY": "your-key-here",
+        "BRAVE_API_KEY": "",
+        "TAVILY_API_KEY": "",
+        "EXA_API_KEY": "",
+        "PERPLEXITY_API_KEY": "",
+        "JINA_API_KEY": ""
       }
     }
   }
@@ -78,7 +83,11 @@ Add to your Claude Desktop config:
       "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
         "SERPER_API_KEY": "your-key-here",
-        "BRAVE_API_KEY": "your-key-here"
+        "BRAVE_API_KEY": "",
+        "TAVILY_API_KEY": "",
+        "EXA_API_KEY": "",
+        "PERPLEXITY_API_KEY": "",
+        "JINA_API_KEY": ""
       }
     }
   }
@@ -109,7 +118,12 @@ Add to your User Settings (JSON) via `Ctrl+Shift+P` → `Preferences: Open User 
         "command": "uv",
         "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
         "env": {
-          "SERPER_API_KEY": "your-key-here"
+          "SERPER_API_KEY": "your-key-here",
+          "BRAVE_API_KEY": "",
+          "TAVILY_API_KEY": "",
+          "EXA_API_KEY": "",
+          "PERPLEXITY_API_KEY": "",
+          "JINA_API_KEY": ""
         }
       }
     }
@@ -133,7 +147,12 @@ Add to your `~/.codeium/windsurf/mcp_config.json`:
       "command": "uv",
       "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
-        "SERPER_API_KEY": "your-key-here"
+        "SERPER_API_KEY": "your-key-here",
+        "BRAVE_API_KEY": "",
+        "TAVILY_API_KEY": "",
+        "EXA_API_KEY": "",
+        "PERPLEXITY_API_KEY": "",
+        "JINA_API_KEY": ""
       }
     }
   }
