@@ -51,60 +51,25 @@ You only need **one** provider to get started. Add more for redundancy.
 
 ## Installation
 
+### Agent install instructions (copy/paste)
+
+```
+You are installing the Captain Search MCP server. First ask the user which API keys they want to configure: SERPER_API_KEY, BRAVE_API_KEY, TAVILY_API_KEY, EXA_API_KEY, PERPLEXITY_API_KEY, JINA_API_KEY. Then ask which client they want to set up (Cursor, Claude Code, VS Code, Windsurf/Antigravity, OpenCode). Use only the keys they choose and remind them at least one web-search key is required.
+
+Then provide the client-specific setup:
+- Cursor: give the Captain Search Cursor deeplink and tell them to set the chosen keys as environment variables, then restart Cursor.
+- Claude Code: use `claude mcp add captain-search -- uv run --directory /path/to/captain-search captain-search` and pass only the chosen keys with `-e KEY=value`.
+- VS Code: use the `code --add-mcp` command with only the chosen env keys (or leave them blank if the user wants to fill later).
+- Windsurf/Antigravity: add the MCP server to ~/.codeium/windsurf/mcp_config.json with the chosen env keys.
+- OpenCode: add to opencode.jsonc under `mcp` with `type: "local"`, `command: ["uv", "run", "--directory", "/path/to/captain-search", "captain-search"]`, and an `environment` object with the chosen keys.
+```
+
 <details>
 <summary><b>Install in Cursor</b></summary>
 
-Go to: `Settings` → `Cursor Settings` → `MCP` → `Add new global MCP server`
+[Install in Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=captain-search&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJjYXB0YWluLXNlYXJjaCJdLCJlbnYiOnsiU0VSUEVSX0FQSV9LRVkiOiIke2VudjpTRVJQRVJfQVBJX0tFWX0iLCJCUkFWRV9BUElfS0VZIjoiJHtlbnY6QlJBVkVfQVBJX0tFWX0iLCJUQVZJTFlfQVBJX0tFWSI6IiR7ZW52OlRBVklMWV9BUElfS0VZfSIsIkVYQV9BUElfS0VZIjoiJHtlbnY6RVhBX0FQSV9LRVl9IiwiUEVSUExFWElUWV9BUElfS0VZIjoiJHtlbnY6UEVSUExFWElUWV9BUElfS0VZfSIsIkpJTkFfQVBJX0tFWSI6IiR7ZW52OkpJTkFfQVBJX0tFWX0ifX0=)
 
-Add to your `~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "captain-search": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
-      "env": {
-        "SERPER_API_KEY": "your-key-here",
-        "BRAVE_API_KEY": "",
-        "TAVILY_API_KEY": "",
-        "EXA_API_KEY": "",
-        "PERPLEXITY_API_KEY": "",
-        "JINA_API_KEY": ""
-      }
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>Install in Claude Desktop</b></summary>
-
-Add to your Claude Desktop config:
-
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`  
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "captain-search": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
-      "env": {
-        "SERPER_API_KEY": "your-key-here",
-        "BRAVE_API_KEY": "",
-        "TAVILY_API_KEY": "",
-        "EXA_API_KEY": "",
-        "PERPLEXITY_API_KEY": "",
-        "JINA_API_KEY": ""
-      }
-    }
-  }
-}
-```
+API keys are pulled from your environment (e.g., `SERPER_API_KEY`). Set them in your shell or system settings, then restart Cursor.
 
 </details>
 
@@ -120,7 +85,13 @@ claude mcp add captain-search -e SERPER_API_KEY=your-key -- uv run --directory /
 <details>
 <summary><b>Install in VS Code</b></summary>
 
-Add to your User Settings (JSON) via `Ctrl+Shift+P` → `Preferences: Open User Settings (JSON)`:
+Install via terminal:
+
+```bash
+code --add-mcp '{"name":"captain-search","command":"uv","args":["run","--directory","/path/to/captain-search","captain-search"],"env":{"SERPER_API_KEY":"your-key-here","BRAVE_API_KEY":"","TAVILY_API_KEY":"","EXA_API_KEY":"","PERPLEXITY_API_KEY":"","JINA_API_KEY":""}}'
+```
+
+Or add to your User Settings (JSON) via `Ctrl+Shift+P` → `Preferences: Open User Settings (JSON)`:
 
 ```json
 {
@@ -148,9 +119,9 @@ Or add to `.vscode/mcp.json` in your workspace to share with your team.
 </details>
 
 <details>
-<summary><b>Install in Windsurf</b></summary>
+<summary><b>Install in Windsurf / Antigravity</b></summary>
 
-Add to your `~/.codeium/windsurf/mcp_config.json`:
+Add to your `~/.codeium/windsurf/mcp_config.json` (shared config for Windsurf and Antigravity):
 
 ```json
 {
@@ -159,6 +130,34 @@ Add to your `~/.codeium/windsurf/mcp_config.json`:
       "command": "uv",
       "args": ["run", "--directory", "/path/to/captain-search", "captain-search"],
       "env": {
+        "SERPER_API_KEY": "your-key-here",
+        "BRAVE_API_KEY": "",
+        "TAVILY_API_KEY": "",
+        "EXA_API_KEY": "",
+        "PERPLEXITY_API_KEY": "",
+        "JINA_API_KEY": ""
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Install in OpenCode</b></summary>
+
+Add to your `opencode.jsonc` (project root) under `mcp`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "captain_search": {
+      "type": "local",
+      "command": ["uv", "run", "--directory", "/path/to/captain-search", "captain-search"],
+      "enabled": true,
+      "environment": {
         "SERPER_API_KEY": "your-key-here",
         "BRAVE_API_KEY": "",
         "TAVILY_API_KEY": "",
@@ -232,18 +231,6 @@ captain-search --transport http --port 8000
 Connect via:
 - Header: `Authorization: Bearer your-secret-token`
 - Query: `http://host:8000/mcp?token=your-secret-token`
-
-### Claude Desktop (Remote)
-
-```json
-{
-  "mcpServers": {
-    "captain-search": {
-      "url": "http://your-server:8000/mcp?token=your-secret-token"
-    }
-  }
-}
-```
 
 ---
 
