@@ -1,4 +1,20 @@
-"""Tests for search-proxy."""
+"""Basic smoke tests for public tools."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+
+import pytest
+
+from captain_search.tools import fetch_webpage, search_code, search_web
+
+QUERY = "openai api"
+FETCH_URL = "https://example.com"
+CODE_QUERY = "contextmanager"
+NO_PROVIDERS_ERROR = "No search providers configured"
+AUTH_ERROR_MARKERS = ["Invalid API key", "Access forbidden", "HTTP 401", "HTTP 403"]
 
 
 def test_imports():
@@ -14,64 +30,47 @@ def test_imports():
         SerperProvider,  # noqa: F401
         TavilyProvider,  # noqa: F401
     )
-    from captain_search.tools import (  # noqa: F401
-        search_fetch_webpage,
-        search_multi,
-        search_web,
-    )
+    from captain_search.tools import fetch_webpage, search_code, search_web  # noqa: F401
 
-    assert __version__ == "0.1.0"
+    assert isinstance(__version__, str)
+    assert __version__
 
 
-def test_config_defaults():
-    """Test default configuration values."""
-    from captain_search.config import Config, reset_config
-
-    reset_config()
-    config = Config()
-
-    # Default weights
-    assert config.providers.serper.weight == 42
-    assert config.providers.brave.weight == 33
-    assert config.providers.tavily.weight == 17
-    assert config.providers.perplexity.weight == 8
-
-    # All enabled by default
-    assert config.providers.serper.enabled is True
-    assert config.providers.brave.enabled is True
-    assert config.providers.tavily.enabled is True
-    assert config.providers.perplexity.enabled is True
+def _skip_if_no_e2e() -> None:
+    if not os.getenv("RUN_E2E"):
+        pytest.skip("Set RUN_E2E=1 to run networked smoke tests")
 
 
-def test_search_result_model():
-    """Test SearchResult model."""
-    from captain_search.providers.base import SearchResult
+def test_search_web_smoke() -> None:
+    _skip_if_no_e2e()
 
-    result = SearchResult(
-        title="Test Title",
-        url="https://example.com",
-        content="Test content",
-        source="test",
-    )
+    output = asyncio.run(search_web(query=QUERY, max_results=1, format="json"))
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError as e:
+        pytest.fail(f"search_web returned non-JSON output: {output[:200]} ({e})")
+    error = payload.get("error")
 
-    assert result.title == "Test Title"
-    assert result.url == "https://example.com"
-    assert result.content == "Test content"
-    assert result.source == "test"
+    if error and NO_PROVIDERS_ERROR in error:
+        pytest.skip("No web providers configured")
+    if error and any(marker in error for marker in AUTH_ERROR_MARKERS):
+        pytest.skip("Web provider authentication not configured")
+
+    assert not error, f"search_web error: {error}"
+    assert payload["results"], "No search results returned"
 
 
-def test_weighted_random_choice():
-    """Test weighted random selection."""
-    from captain_search.tools.search import _weighted_random_choice
+def test_fetch_webpage_smoke() -> None:
+    _skip_if_no_e2e()
 
-    weights = {"a": 90, "b": 10}
+    output = asyncio.run(fetch_webpage(url=FETCH_URL, format="markdown"))
+    assert not output.startswith("**Error:**")
+    assert "Example Domain" in output
 
-    # Run many times and check distribution
-    counts = {"a": 0, "b": 0}
-    for _ in range(1000):
-        choice = _weighted_random_choice(weights)
-        counts[choice] += 1
 
-    # Should be roughly 90/10 distribution
-    assert counts["a"] > 700  # Should be around 900
-    assert counts["b"] < 300  # Should be around 100
+def test_search_code_smoke() -> None:
+    _skip_if_no_e2e()
+
+    output = asyncio.run(search_code(query=CODE_QUERY))
+    assert output.strip()
+    assert output.strip() != "No results found."

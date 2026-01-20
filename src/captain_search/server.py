@@ -10,8 +10,8 @@ from pydantic import Field
 
 from captain_search.auth import build_auth_provider
 from captain_search.config import get_config
-from captain_search.tools.fetch import search_fetch_webpage as fetch_impl
-from captain_search.tools.search import search_multi as multi_impl
+from captain_search.tools.code_search import search_code as code_impl
+from captain_search.tools.fetch import fetch_webpage as fetch_impl
 from captain_search.tools.search import search_web as web_impl
 
 # Initialize config early to validate environment
@@ -24,12 +24,12 @@ auth_provider = build_auth_provider(config.settings.mcp_auth_token)
 mcp = FastMCP(
     name="captain_search",
     instructions="""
-Captain Search MCP Server - Unified web search across multiple providers.
+Captain Search MCP Server - Unified web and code search across multiple providers.
 
 Available tools:
-- search_web: Search the web using a single provider (weighted random selection with fallback)
-- search_multi: Search all providers in parallel and combine results
-- search_fetch_webpage: Fetch and extract content from a webpage or PDF
+- search_web: Search the web using weighted selection with fallback
+- search_code: Search code across Exa, grep.app, DeepWiki, and Noodl
+- fetch_webpage: Fetch and extract content from a webpage or PDF
 
 The server automatically selects providers based on configured weights and handles
 failures by trying alternative providers.
@@ -39,12 +39,21 @@ failures by trying alternative providers.
 
 
 # Tool annotations following MCP best practices
+
 SEARCH_ANNOTATIONS = {
     "title": "Web Search",
     "readOnlyHint": True,  # Does not modify environment
     "destructiveHint": False,  # No destructive operations
     "idempotentHint": True,  # Same args = same result (mostly)
     "openWorldHint": True,  # Interacts with external services
+}
+
+CODE_ANNOTATIONS = {
+    "title": "Code Search",
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
 }
 
 FETCH_ANNOTATIONS = {
@@ -60,65 +69,44 @@ FETCH_ANNOTATIONS = {
 async def search_web(
     query: Annotated[str, Field(description="Search query", min_length=1, max_length=500)],
     max_results: Annotated[
-        int, Field(description="Maximum number of results to return", ge=1, le=50)
+        int,
+        Field(
+            description="Maximum number of results (1-50). In multi mode, per provider.",
+            ge=1,
+            le=50,
+        ),
     ] = 10,
+    provider: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Provider selector: auto (default), multi/all, a provider name, or a comma-separated list."
+            )
+        ),
+    ] = None,
 ) -> str:
     """
-    Search the web using weighted random provider selection with automatic fallback.
-
-    Searches across multiple providers (Serper, Brave, Tavily, Perplexity) using
-    weighted random selection based on their free tier limits. If the selected
-    provider fails, automatically tries the next provider.
+    Search the web using weighted selection or multi-provider search.
 
     Args:
         query: The search query string
-        max_results: Maximum number of results (1-50, default 10)
+        max_results: Maximum number of results (1-50, default 10). Per provider in multi mode.
+        provider: Provider selector (default: auto)
 
     Returns:
         Search results in markdown format
     """
-    # Always use markdown format for agents (most token efficient)
-    return await web_impl(query=query, max_results=max_results, format="markdown")
-
-
-@mcp.tool(name="search_multi", annotations=SEARCH_ANNOTATIONS)
-async def search_multi(
-    query: Annotated[str, Field(description="Search query", min_length=1, max_length=500)],
-    max_results_per_provider: Annotated[
-        int, Field(description="Maximum results per provider", ge=1, le=20)
-    ] = 5,
-    providers: Annotated[
-        list[str] | None,
-        Field(description="Specific providers to use (default: all). Options: serper, brave, tavily, perplexity"),
-    ] = None,
-) -> str:
-    """
-    Search multiple providers in parallel and combine results.
-
-    Queries all enabled providers simultaneously, combines the results,
-    and optionally deduplicates by URL. Useful for comprehensive searches
-    that need results from multiple sources.
-
-    Args:
-        query: The search query string
-        max_results_per_provider: Max results from each provider (1-20, default 5)
-        providers: Specific providers to use (default: all enabled)
-
-    Returns:
-        Combined search results in the specified format
-    """
-    # Hardcoded for optimal agent experience: always deduplicate, always markdown
-    return await multi_impl(
+    provider_value = (provider or "auto").strip().lower()
+    return await web_impl(
         query=query,
-        max_results_per_provider=max_results_per_provider,
-        providers=providers,
-        deduplicate=True,  # Always deduplicate for agents
-        format="markdown",  # Always markdown (most token efficient)
+        max_results=max_results,
+        provider=provider_value,
+        format="markdown",
     )
 
 
-@mcp.tool(name="search_fetch_webpage", annotations=FETCH_ANNOTATIONS)
-async def search_fetch_webpage(
+@mcp.tool(name="fetch_webpage", annotations=FETCH_ANNOTATIONS)
+async def fetch_webpage(
     url: Annotated[str, Field(description="URL to fetch content from")],
 ) -> str:
     """
@@ -134,11 +122,44 @@ async def search_fetch_webpage(
         Extracted content in markdown format
 
     Examples:
-        - Fetch a webpage: search_fetch_webpage("https://example.com/article")
-        - Fetch a PDF: search_fetch_webpage("https://example.com/document.pdf")
+        - Fetch a webpage: fetch_webpage("https://example.com/article")
+        - Fetch a PDF: fetch_webpage("https://example.com/document.pdf")
     """
     # Always use markdown format for agents
     return await fetch_impl(url=url, format="markdown")
+
+
+@mcp.tool(name="search_code", annotations=CODE_ANNOTATIONS)
+async def search_code(
+    query: Annotated[
+        str,
+        Field(
+            description="Code search query (e.g., function names, error messages, API usage)",
+            min_length=1,
+            max_length=500,
+        ),
+    ],
+    repo: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Git URL or owner/repo to scope results (e.g., 'facebook/react'). "
+                "When provided, enables DeepWiki Q&A and Noodl graph search for that repo."
+            )
+        ),
+    ] = None,
+) -> str:
+    """
+    Search code across multiple providers.
+
+    Args:
+        query: Code search query string
+        repo: Git URL or owner/repo (optional). When provided, results are scoped to this repo.
+
+    Returns:
+        Search results in markdown format
+    """
+    return await code_impl(query=query, repo=repo)
 
 
 def main():
@@ -171,7 +192,9 @@ def main():
     if enabled:
         print(f"Captain Search starting with providers: {', '.join(enabled)}", file=sys.stderr)
     else:
-        print("Warning: No search providers configured. Set API keys in environment.", file=sys.stderr)
+        print(
+            "Warning: No search providers configured. Set API keys in environment.", file=sys.stderr
+        )
 
     # Run server
     if args.transport == "stdio":

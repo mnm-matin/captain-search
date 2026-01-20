@@ -1,10 +1,11 @@
 """Tools for search-proxy."""
 
-from captain_search.tools.fetch import search_fetch_webpage
-from captain_search.tools.search import search_multi, search_web
+from captain_search.tools.code_search import search_code
+from captain_search.tools.fetch import fetch_webpage
+from captain_search.tools.search import search_web
 
 __all__ = [
+    "search_code",
     "search_web",
-    "search_multi",
-    "search_fetch_webpage",
+    "fetch_webpage",
 ]

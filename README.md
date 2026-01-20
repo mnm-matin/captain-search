@@ -1,26 +1,24 @@
-<div align="center">
-  <h1>🧭 Captain Search</h1>
-  <p><strong>One MCP server for all your web search needs</strong></p>
-  <p>Aggregate multiple search providers with automatic load balancing and fallback</p>
-</div>
+<h1 align="center">Captain Search</h1>
+
+<p align="center">
+  <strong>Unified web and code search for MCP agents</strong><br>
+  One server. Multiple providers. Clean Markdown.
+</p>
+
+<p align="center">
+  <img src="docs/banner.svg" alt="Captain Search – Web and code search for MCP agents" width="600" />
+</p>
 
 <p align="center">
   <a href="https://github.com/mnm-matin/captain-search/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-  <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python"></a>
 </p>
 
 ---
 
-## Why Captain Search?
-
-- 🔄 **Auto-rotation** between providers based on free tier limits
-- ⚡ **Automatic fallback** when a provider fails  
-- 🔗 **Parallel search** across all providers for comprehensive results
-- 📄 **Built-in webpage extraction** via Jina Reader
-
----
-
 ## Supported Providers
+
+### Web Search
 
 You only need **one** provider to get started. Add more for redundancy.
 
@@ -31,9 +29,23 @@ You only need **one** provider to get started. Add more for redundancy.
 | **Tavily** | 1,000/month | AI-optimized results | [app.tavily.com](https://app.tavily.com) |
 | **Exa** | $10 credit | Neural/semantic search | [dashboard.exa.ai](https://dashboard.exa.ai/api-keys) |
 | **Perplexity** | $5/mo credit | AI-powered answers | [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api) |
-| **Jina** | 1M tokens | Webpage/PDF extraction | [jina.ai/reader](https://jina.ai/reader/) |
 
 > 💡 **Tip:** Serper + Brave = 4,500 free searches/month with automatic failover
+
+### Code Search
+
+| Provider | Free Tier | Best For | Get API Key |
+|----------|-----------|----------|-------------|
+| **Exa (MCP)** | Unlimited* | Semantic code context | [exa.ai](https://exa.ai) |
+| **grep.app** | Free (no key) | Exact text matching | [grep.app](https://grep.app) |
+| **DeepWiki** | Free (MCP) | Repo Q&A / Architecture | [deepwiki.com](https://deepwiki.com) |
+| **Noodlbox** | Free (local) | Local graph analysis | [noodlbox.io](https://noodlbox.io) |
+
+### Webpage Extraction
+
+| Provider | Free Tier | Best For | Get API Key |
+|----------|-----------|----------|-------------|
+| **Jina** | 1M tokens | Webpage/PDF extraction | [jina.ai/reader](https://jina.ai/reader/) |
 
 ---
 
@@ -180,9 +192,21 @@ Then update `/path/to/captain-search` in the configs above to your actual path.
 
 | Tool | Description |
 |------|-------------|
-| `search_web` | Search with auto-rotating providers and fallback |
-| `search_multi` | Search ALL providers in parallel, deduplicate results |
+| `search_web` | Search with weighted selection and optional multi-provider mode |
+| `search_code` | Search code across Exa, grep.app, DeepWiki, and Noodl |
 | `fetch_webpage` | Extract content from any URL (articles, PDFs, docs) |
+
+`search_web` provider selector:
+- `auto` (default): weighted single-provider selection with fallback
+- `multi` or `all`: parallel search across all enabled providers
+- Provider name: `serper`, `brave`, `tavily`, `perplexity`, `exa`, `exa_mcp`
+- Comma-separated list for multi-provider search
+
+`search_code` providers:
+- **Exa Code Context**: Semantic search (always runs)
+- **grep.app**: Exact text matching (always runs)
+- **DeepWiki**: Repo Q&A (requires repo filter)
+- **Noodl**: Local graph analysis (requires repo filter + cloned repo)
 
 ---
 
@@ -241,7 +265,7 @@ Connect via:
 
 1. **Weighted Selection**: Providers chosen based on free tier limits
 2. **Automatic Fallback**: If one fails, tries the next
-3. **Multi-Provider**: `search_multi` queries all in parallel
+3. **Multi-Provider**: `search_web` in `multi` mode queries all in parallel
 
 Default weights: Serper (42%) → Brave (33%) → Tavily (17%) → Perplexity (8%)
 

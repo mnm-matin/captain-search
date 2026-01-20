@@ -18,7 +18,7 @@ class FetchFormat(str, Enum):
 
 
 class FetchInput(BaseModel):
-    """Input schema for search_fetch_webpage tool."""
+    """Input schema for fetch_webpage tool."""
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
@@ -28,7 +28,7 @@ class FetchInput(BaseModel):
     )
 
 
-async def search_fetch_webpage(
+async def fetch_webpage(
     url: str,
     format: str = "markdown",
 ) -> str:
@@ -46,8 +46,8 @@ async def search_fetch_webpage(
         Extracted content in the specified format, or error message
 
     Examples:
-        - Fetch a webpage: search_fetch_webpage("https://example.com/article")
-        - Fetch a PDF: search_fetch_webpage("https://example.com/document.pdf")
+        - Fetch a webpage: fetch_webpage("https://example.com/article")
+        - Fetch a PDF: fetch_webpage("https://example.com/document.pdf")
     """
     config = get_config()
 

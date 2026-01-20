@@ -46,25 +46,6 @@ class SearchInput(BaseModel):
     )
 
 
-class MultiSearchInput(BaseModel):
-    """Input schema for search_multi tool."""
-
-    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-
-    query: str = Field(..., description="Search query", min_length=1, max_length=500)
-    max_results_per_provider: int = Field(
-        default=5, description="Maximum results per provider", ge=1, le=20
-    )
-    providers: list[str] | None = Field(
-        default=None,
-        description="Specific providers to use (default: all enabled). Options: serper, brave, tavily, perplexity",
-    )
-    deduplicate: bool = Field(default=True, description="Remove duplicate URLs from results")
-    format: ResponseFormat = Field(
-        default=ResponseFormat.MARKDOWN, description="Response format (markdown or json)"
-    )
-
-
 def _get_provider_instance(name: str, config: Config) -> SearchProvider | None:
     """Create a provider instance from config."""
     provider_config = getattr(config.providers, name, None)
@@ -159,6 +140,7 @@ async def search_web(
     query: str,
     max_results: int = 10,
     format: str = "markdown",
+    provider: str | None = None,
 ) -> str:
     """
     Search the web using weighted random provider selection with automatic fallback.
@@ -171,21 +153,145 @@ async def search_web(
         query: Search query string
         max_results: Maximum number of results (1-50, default 10)
         format: Response format - "markdown" or "json" (default "markdown")
+        provider: Provider selector - "auto" (default), "multi"/"all", provider name,
+            or comma-separated provider list
 
     Returns:
         Search results in the specified format
     """
     start_time = time.monotonic()
+    fmt = (format or "markdown").strip().lower()
+    provider_value = (provider or "auto").strip().lower()
     config = get_config()
 
-    # Get enabled providers and their weights
+    known_providers = {"serper", "brave", "tavily", "perplexity", "exa", "exa_mcp"}
+
+    async def run_explicit_providers(
+        requested: list[str], unknown: list[str]
+    ) -> str:
+        provider_instances: list[tuple[str, SearchProvider]] = []
+        for name in requested:
+            instance = _get_provider_instance(name, config)
+            if instance is not None:
+                provider_instances.append((name, instance))
+
+        if not provider_instances:
+            base_error = (
+                "No search providers configured. Please set API keys in environment variables."
+            )
+            if unknown and not requested:
+                base_error = f"Unknown provider(s): {', '.join(unknown)}"
+
+            response = SearchResponse(query=query, error=base_error)
+            return (
+                _format_results_markdown(response)
+                if fmt == "markdown"
+                else _format_results_json(response)
+            )
+
+        async def search_provider(
+            name: str, provider_instance: SearchProvider
+        ) -> tuple[str, list[SearchResult], str | None]:
+            try:
+                results = await provider_instance.search(query, max_results)
+                return name, results, None
+            except httpx.HTTPStatusError as e:
+                return name, [], _handle_api_error(e, name)
+            except httpx.TimeoutException:
+                return name, [], f"{name}: Request timed out"
+            except Exception as e:
+                detail = str(e).strip()
+                if detail:
+                    return name, [], f"{name}: {type(e).__name__}: {detail}"
+                return name, [], f"{name}: {type(e).__name__}"
+            finally:
+                await provider_instance.close()
+
+        tasks = [
+            search_provider(name, provider_instance)
+            for name, provider_instance in provider_instances
+        ]
+        results_by_provider = await asyncio.gather(*tasks)
+
+        all_results: list[SearchResult] = []
+        providers_used: list[str] = []
+        errors: list[str] = []
+
+        for name, results, error in results_by_provider:
+            if results:
+                all_results.extend(results)
+                providers_used.append(name)
+            if error:
+                errors.append(error)
+
+        # Deduplicate by URL
+        if all_results:
+            seen_urls: set[str] = set()
+            unique_results: list[SearchResult] = []
+            for result in all_results:
+                if result.url and result.url not in seen_urls:
+                    seen_urls.add(result.url)
+                    unique_results.append(result)
+            all_results = unique_results
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+
+        error: str | None = None
+        if not all_results:
+            if unknown:
+                errors.append(f"Unknown provider(s): {', '.join(unknown)}")
+            if errors:
+                error = "; ".join(errors)
+
+        response = SearchResponse(
+            query=query,
+            results=all_results,
+            providers_used=providers_used,
+            elapsed_ms=elapsed_ms,
+            error=error,
+        )
+        return (
+            _format_results_markdown(response)
+            if fmt == "markdown"
+            else _format_results_json(response)
+        )
+
+    # Explicit provider modes
+    if provider_value in {"multi", "all"}:
+        requested = config.get_enabled_providers()
+        return await run_explicit_providers(requested=requested, unknown=[])
+
+    if provider_value not in {"", "auto"}:
+        raw_names = [name.strip().lower() for name in provider_value.split(",") if name.strip()]
+        if not raw_names:
+            provider_value = "auto"
+        else:
+            requested: list[str] = []
+            unknown: list[str] = []
+            seen: set[str] = set()
+            for name in raw_names:
+                if name in seen:
+                    continue
+                seen.add(name)
+                if name in known_providers:
+                    requested.append(name)
+                else:
+                    unknown.append(name)
+            return await run_explicit_providers(requested=requested, unknown=unknown)
+
+    # Auto mode: weighted single-provider selection with fallback
+
     weights = config.get_provider_weights()
     if not weights:
         response = SearchResponse(
             query=query,
             error="No search providers configured. Please set API keys in environment variables.",
         )
-        return _format_results_markdown(response) if format == "markdown" else _format_results_json(response)
+        return (
+            _format_results_markdown(response)
+            if fmt == "markdown"
+            else _format_results_json(response)
+        )
 
     # Sort providers by weight (descending) for fallback order
     sorted_providers = sorted(weights.keys(), key=lambda x: weights[x], reverse=True)
@@ -227,131 +333,17 @@ async def search_web(
             await provider.close()
 
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
+    if not providers_used and last_error is None:
+        last_error = "All configured providers failed. Try again later."
 
     response = SearchResponse(
         query=query,
         results=results,
         providers_used=providers_used,
         elapsed_ms=elapsed_ms,
-        error=last_error if not results else None,
+        error=last_error if (last_error and not providers_used) else None,
     )
-
-    if format == "json":
-        return _format_results_json(response)
-    return _format_results_markdown(response)
-
-
-async def search_multi(
-    query: str,
-    max_results_per_provider: int = 5,
-    providers: list[str] | None = None,
-    deduplicate: bool = True,
-    format: str = "markdown",
-) -> str:
-    """
-    Search multiple providers in parallel and combine results.
-
-    This tool queries all enabled providers simultaneously, combines the results,
-    and optionally deduplicates by URL. Useful for comprehensive searches.
-
-    Args:
-        query: Search query string
-        max_results_per_provider: Max results from each provider (1-20, default 5)
-        providers: Specific providers to use (default: all enabled)
-        deduplicate: Remove duplicate URLs (default True)
-        format: Response format - "markdown" or "json" (default "markdown")
-
-    Returns:
-        Combined search results in the specified format
-    """
-    config = get_config()
-
-    # Determine which providers to use
-    available = config.get_enabled_providers()
-    providers_to_use = [p for p in providers if p in available] if providers else available
-
-    if not providers_to_use:
-        response = SearchResponse(
-            query=query,
-            error="No search providers available. Please configure API keys.",
-        )
-        return _format_results_markdown(response) if format == "markdown" else _format_results_json(response)
-
-    # Create provider instances
-    provider_instances = []
-    for name in providers_to_use:
-        instance = _get_provider_instance(name, config)
-        if instance:
-            provider_instances.append((name, instance))
-
-    # Search all providers in parallel
-    async def search_provider(name: str, provider: SearchProvider) -> tuple[str, list[SearchResult], str | None]:
-        try:
-            results = await provider.search(query, max_results_per_provider)
-            return (name, results, None)
-        except httpx.HTTPStatusError as e:
-            return (name, [], _handle_api_error(e, name))
-        except httpx.TimeoutException:
-            return (name, [], f"{name}: Timed out")
-        except Exception as e:
-            return (name, [], f"{name}: {type(e).__name__}")
-        finally:
-            await provider.close()
-
-    tasks = [search_provider(name, provider) for name, provider in provider_instances]
-    results_by_provider = await asyncio.gather(*tasks)
-
-    # Combine results
-    all_results: list[SearchResult] = []
-    providers_used: list[str] = []
-    errors: list[str] = []
-
-    for name, results, error in results_by_provider:
-        if results:
-            all_results.extend(results)
-            providers_used.append(name)
-        if error:
-            errors.append(error)
-
-    # Deduplicate by URL
-    if deduplicate and all_results:
-        seen_urls: set[str] = set()
-        unique_results: list[SearchResult] = []
-        for result in all_results:
-            if result.url not in seen_urls:
-                seen_urls.add(result.url)
-                unique_results.append(result)
-        all_results = unique_results
-
-    # Build response - optimized for LLM consumption (minimal metadata)
-    if format == "json":
-        output = {
-            "results": [
-                {"title": r.title, "url": r.url, "content": r.content}
-                for r in all_results
-            ]
-        }
-        if errors and not all_results:
-            output["error"] = "; ".join(errors)
-        return json.dumps(output, indent=2)
-
-    # Markdown format - clean and focused
-    if not all_results:
-        if errors:
-            return f"**Error:** {'; '.join(errors)}"
-        return "No results found."
-
-    lines = []
-    for i, result in enumerate(all_results, 1):
-        lines.append(f"## {i}. {result.title}")
-        lines.append(f"**URL:** {result.url}")
-        if result.content:
-            content = result.content[:500] + "..." if len(result.content) > 500 else result.content
-            lines.append(f"\n{content}\n")
-        else:
-            lines.append("")
-
-    return "\n".join(lines)
+    return _format_results_markdown(response) if fmt == "markdown" else _format_results_json(response)
 
 
 def _handle_api_error(e: httpx.HTTPStatusError, provider: str) -> str:

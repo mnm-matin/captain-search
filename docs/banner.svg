@@ -1,0 +1,85 @@
+<svg width="800" height="300" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Captain Search – Web and code search for MCP agents">
+	<defs>
+		<!-- Colors -->
+		<style>
+			:root {
+				--ink: #0f172a;        /* charcoal */
+				--muted: #475569;      /* slate */
+				--accent1: #14b8a6;    /* teal */
+				--accent2: #38bdf8;    /* blue */
+				--line: #cbd5e1;       /* light slate */
+			}
+			text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+		</style>
+
+		<!-- Soft glow for center -->
+		<filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+			<feGaussianBlur stdDeviation="6" result="blur"/>
+			<feMerge>
+				<feMergeNode in="blur"/>
+				<feMergeNode in="SourceGraphic"/>
+			</feMerge>
+		</filter>
+
+		<!-- Arrow marker -->
+		<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+			<path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+		</marker>
+	</defs>
+
+	<!-- CENTER: Compass / Router -->
+	<g transform="translate(400,150)">
+		<!-- Outer ring -->
+		<circle cx="0" cy="0" r="66" fill="none" stroke="var(--ink)" stroke-width="2"/>
+		<circle cx="0" cy="0" r="52" fill="none" stroke="var(--line)" stroke-width="2"/>
+
+		<!-- Compass spokes -->
+		<line x1="-46" y1="0" x2="46" y2="0" stroke="var(--line)" stroke-width="2"/>
+		<line x1="0" y1="-46" x2="0" y2="46" stroke="var(--line)" stroke-width="2"/>
+
+		<!-- Center hub -->
+		<circle cx="0" cy="0" r="14" fill="var(--ink)" filter="url(#softGlow)"/>
+	</g>
+
+	<!-- INPUT SIGNALS -->
+	<!-- Web -->
+	<g transform="translate(140,70)">
+		<circle cx="0" cy="0" r="16" fill="none" stroke="var(--accent2)" stroke-width="2"/>
+		<path d="M -8 0 H 8 M 0 -8 V 8 M -6 -6 C -2 -2 -2 2 -6 6 M 6 -6 C 2 -2 2 2 6 6"
+					stroke="var(--accent2)" stroke-width="1.5" fill="none"/>
+		<text x="0" y="32" text-anchor="middle" font-size="13" fill="var(--muted)">Web</text>
+	</g>
+
+	<!-- Code -->
+	<g transform="translate(140,150)">
+		<rect x="-14" y="-14" width="28" height="28" rx="5" fill="none" stroke="var(--accent1)" stroke-width="2"/>
+		<text x="0" y="5" text-anchor="middle" font-size="16" font-weight="700" fill="var(--accent1)">{ }</text>
+		<text x="0" y="32" text-anchor="middle" font-size="13" fill="var(--muted)">Code</text>
+	</g>
+
+	<!-- Docs -->
+	<g transform="translate(140,230)">
+		<rect x="-12" y="-16" width="24" height="32" rx="4" fill="none" stroke="var(--accent2)" stroke-width="2"/>
+		<line x1="-7" y1="-5" x2="7" y2="-5" stroke="var(--accent2)" stroke-width="1.5"/>
+		<line x1="-7" y1="1" x2="7" y2="1" stroke="var(--accent2)" stroke-width="1.5"/>
+		<line x1="-7" y1="7" x2="3" y2="7" stroke="var(--accent2)" stroke-width="1.5"/>
+		<text x="0" y="40" text-anchor="middle" font-size="13" fill="var(--muted)">Docs</text>
+	</g>
+
+	<!-- Arrows into compass -->
+	<path d="M 170 70 C 240 70, 280 110, 345 130" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#arrow)"/>
+	<path d="M 170 150 C 240 150, 280 150, 345 150" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#arrow)"/>
+	<path d="M 170 230 C 240 230, 280 190, 345 170" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#arrow)"/>
+
+	<!-- OUTPUT -->
+	<g transform="translate(660,150)">
+		<rect x="-22" y="-30" width="44" height="60" rx="5" fill="none" stroke="var(--ink)" stroke-width="2"/>
+		<line x1="-14" y1="-12" x2="14" y2="-12" stroke="var(--line)" stroke-width="2"/>
+		<line x1="-14" y1="-2" x2="14" y2="-2" stroke="var(--line)" stroke-width="2"/>
+		<line x1="-14" y1="8" x2="8" y2="8" stroke="var(--line)" stroke-width="2"/>
+		<text x="0" y="50" text-anchor="middle" font-size="13" fill="var(--muted)">Markdown</text>
+	</g>
+
+	<!-- Arrow out -->
+	<path d="M 455 150 C 520 150, 570 150, 625 150" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#arrow)"/>
+</svg>
