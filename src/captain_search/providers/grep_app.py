@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Sequence
+
 import httpx
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
 
 from captain_search.providers.base import SearchProvider, SearchResult
 
-GREP_APP_URL = "https://grep.app/api/search"
+GREP_APP_MCP_URL = "https://mcp.grep.app"
+GREP_APP_TOOL_NAME = "searchGitHub"
 
 
 class GrepAppProvider(SearchProvider):
@@ -23,27 +29,103 @@ class GrepAppProvider(SearchProvider):
     async def code_search(
         self, query: str, repo: str | None = None, max_results: int = 10
     ) -> list[SearchResult]:
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(GREP_APP_URL, params={"q": query})
-            response.raise_for_status()
-            data = response.json()
-
-        hits = data.get("hits", {}).get("hits", [])
+        arguments: dict[str, object] = {
+            "query": query,
+            "useRegexp": False,
+            "matchCase": False,
+            "matchWholeWords": False,
+        }
         if repo:
-            hits = [hit for hit in hits if hit.get("repo") == repo]
+            arguments["repo"] = repo
+
+        result = await self._call_tool(arguments)
+        texts = self._result_texts(getattr(result, "content", None))
+        if getattr(result, "isError", False):
+            self._raise_mcp_error("\n\n".join(texts))
 
         results: list[SearchResult] = []
-        for hit in hits[:max_results]:
-            hit_repo = hit.get("repo", "")
-            branch = hit.get("branch", "master")
-            path = hit.get("path", "")
-            url = f"https://github.com/{hit_repo}/blob/{branch}/{path}"
-            snippet = hit.get("content", {}).get("snippet", "").strip()
+        for text in texts:
+            results.extend(self._parse_search_results(text))
+        return results[:max_results]
+
+    async def _call_tool(self, arguments: dict[str, object]) -> object:
+        client = await self.get_client()
+        async with streamable_http_client(GREP_APP_MCP_URL, http_client=client) as streams:
+            read_stream, write_stream, _session_id = streams
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                return await session.call_tool(GREP_APP_TOOL_NAME, arguments)
+
+    def _result_texts(self, content: Sequence[object] | None) -> list[str]:
+        if not content:
+            return []
+
+        texts: list[str] = []
+        for item in content:
+            if getattr(item, "type", None) != "text":
+                continue
+            text = getattr(item, "text", None)
+            if isinstance(text, str) and text.strip():
+                texts.append(text.strip())
+        return texts
+
+    def _raise_mcp_error(self, text: str) -> None:
+        message = text.strip() or "grep.app MCP error"
+        lowered = message.lower()
+        if "too many request" in lowered or '"too many r' in lowered:
+            request = httpx.Request("POST", GREP_APP_MCP_URL)
+            rate_limited = httpx.Response(429, request=request)
+            raise httpx.HTTPStatusError(
+                "Rate limit exceeded",
+                request=request,
+                response=rate_limited,
+            )
+        raise RuntimeError(message)
+
+    def _parse_search_results(self, text: str) -> list[SearchResult]:
+        blocks = [block.strip() for block in re.split(r"(?=Repository:\s)", text) if block.strip()]
+        results: list[SearchResult] = []
+
+        for block in blocks:
+            normalized = re.sub(
+                r"\s+(?=(Repository|Path|URL|License|Snippets):)",
+                "\n",
+                block,
+            )
+            repo_name = ""
+            path = ""
+            url = ""
+            snippet_lines: list[str] = []
+            in_snippets = False
+
+            for raw_line in normalized.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if line.startswith("Repository:"):
+                    repo_name = line.partition(":")[2].strip()
+                    continue
+                if line.startswith("Path:"):
+                    path = line.partition(":")[2].strip()
+                    continue
+                if line.startswith("URL:"):
+                    url = line.partition(":")[2].strip()
+                    continue
+                if line.startswith("Snippets:"):
+                    in_snippets = True
+                    continue
+                if not in_snippets or line.startswith("--- Snippet"):
+                    continue
+                snippet_lines.append(raw_line.rstrip())
+
+            if not url:
+                continue
+
             results.append(
                 SearchResult(
-                    title=f"{hit_repo}/{path}",
+                    title=f"{repo_name}/{path}" if repo_name and path else path or repo_name or url,
                     url=url,
-                    content=snippet,
+                    content="\n".join(snippet_lines).strip(),
                     source=self.name,
                 )
             )

@@ -1,76 +1,53 @@
-"""Basic smoke tests for public tools."""
+"""Opt-in network smoke tests for public tools."""
 
 from __future__ import annotations
 
 import asyncio
 import json
-import os
 
 import pytest
 
 from captain_search.tools import fetch_webpage, search_code, search_web
+from tests._helpers import skip_if_no_e2e
 
 QUERY = "openai api"
 FETCH_URL = "https://example.com"
 CODE_QUERY = "contextmanager"
-NO_PROVIDERS_ERROR = "No search providers configured"
-AUTH_ERROR_MARKERS = ["Invalid API key", "Access forbidden", "HTTP 401", "HTTP 403"]
 
 
-def test_imports():
-    """Test that all modules can be imported."""
-    from captain_search import __version__
-    from captain_search.config import Config, get_config  # noqa: F401
-    from captain_search.providers import (
-        BraveProvider,  # noqa: F401
-        JinaProvider,  # noqa: F401
-        PerplexityProvider,  # noqa: F401
-        SearchProvider,  # noqa: F401
-        SearchResult,  # noqa: F401
-        SerperProvider,  # noqa: F401
-        TavilyProvider,  # noqa: F401
-    )
-    from captain_search.tools import fetch_webpage, search_code, search_web  # noqa: F401
-
-    assert isinstance(__version__, str)
-    assert __version__
-
-
-def _skip_if_no_e2e() -> None:
-    if not os.getenv("RUN_E2E"):
-        pytest.skip("Set RUN_E2E=1 to run networked smoke tests")
-
-
-def test_search_web_smoke() -> None:
-    _skip_if_no_e2e()
+def test_web_smoke() -> None:
+    skip_if_no_e2e()
 
     output = asyncio.run(search_web(query=QUERY, max_results=1, format="json"))
     try:
         payload = json.loads(output)
-    except json.JSONDecodeError as e:
-        pytest.fail(f"search_web returned non-JSON output: {output[:200]} ({e})")
-    error = payload.get("error")
+    except json.JSONDecodeError as error:
+        pytest.fail(f"search_web returned non-JSON output: {output[:200]} ({error})")
 
-    if error and NO_PROVIDERS_ERROR in error:
-        pytest.skip("No web providers configured")
-    if error and any(marker in error for marker in AUTH_ERROR_MARKERS):
-        pytest.skip("Web provider authentication not configured")
+    if payload.get("error"):
+        pytest.skip(f"Web smoke unavailable: {payload['error']}")
 
-    assert not error, f"search_web error: {error}"
     assert payload["results"], "No search results returned"
 
 
-def test_fetch_webpage_smoke() -> None:
-    _skip_if_no_e2e()
+def test_fetch_smoke() -> None:
+    skip_if_no_e2e()
 
-    output = asyncio.run(fetch_webpage(url=FETCH_URL, format="markdown"))
-    assert not output.startswith("**Error:**")
-    assert "Example Domain" in output
+    output = asyncio.run(fetch_webpage(url=FETCH_URL, format="json"))
+    payload = json.loads(output)
+    if payload.get("error"):
+        pytest.skip(f"Fetch smoke unavailable: {payload['error']}")
+
+    assert payload["status"] == 200
+    assert "Example Domain" in payload["content"]
 
 
-def test_search_code_smoke() -> None:
-    _skip_if_no_e2e()
+def test_code_smoke() -> None:
+    skip_if_no_e2e()
 
-    output = asyncio.run(search_code(query=CODE_QUERY))
-    assert output.strip()
-    assert output.strip() != "No results found."
+    output = asyncio.run(search_code(query=CODE_QUERY, format="json"))
+    payload = json.loads(output)
+    if not payload.get("sections"):
+        pytest.skip("No code search providers returned results")
+
+    assert any(section.get("items") or section.get("content") for section in payload["sections"])

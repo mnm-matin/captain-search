@@ -137,3 +137,5 @@ config.yml
 
 # Context folder (local notes/planning)
 context/
+.specstory/
+.tmp/

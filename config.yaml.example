@@ -1,5 +1,8 @@
 # Captain Search Configuration
 # Customize provider weights and settings here
+# Every keyed provider also supports an `api_keys` list for rotation.
+# Environment variables can use the matching PROVIDER_API_KEYS form, for example:
+# SERPER_API_KEYS=key1,key2,key3
 
 providers:
   # Serper.dev - Google search results
@@ -7,38 +10,60 @@ providers:
   serper:
     weight: 42  # 42% chance of being selected
     enabled: true
+    # api_keys: ["serper-key-1", "serper-key-2"]
 
   # Brave Search
   # Free tier: 2,000 queries/month
   brave:
     weight: 33  # 33% chance of being selected
     enabled: true
+    # api_keys: ["brave-key-1", "brave-key-2"]
 
   # Tavily - AI-optimized search
+  # Also used by fetch_webpage via Tavily Extract when configured
   # Free tier: 1,000 searches/month (per key)
   tavily:
     weight: 17  # 17% chance of being selected
     enabled: true
+    # api_keys: ["tavily-key-1", "tavily-key-2"]
 
   # Perplexity
   # Requires Pro subscription (~$5/month credit)
   perplexity:
     weight: 8  # 8% chance of being selected
     enabled: true
+    # api_keys: ["perplexity-key-1", "perplexity-key-2"]
+
+  # Parallel Search / Extract
+  # Free tier: up to 16,000 requests
+  parallel:
+    weight: 0  # Set above 0 to include in weighted search auto selection
+    enabled: true
+    # api_keys: ["parallel-key-1", "parallel-key-2"]
 
   # Jina Reader (for webpage/PDF extraction)
   # Free tier: 20 requests/minute
   jina:
-    weight: 0  # Not used for search selection
+    weight: 0  # Only used by fetch_webpage auto selection
     enabled: true
+    # api_keys: ["jina-key-1", "jina-key-2"]
 
-  # Exa.ai - AI-powered semantic search via MCP
-  # FREE via MCP endpoint (no API key required!)
-  # Optional API key may provide better results
+  # Exa.ai API - AI-powered semantic web search
+  # Also used by fetch_webpage via Exa Contents
+  # Requires an EXA_API_KEY
   exa:
+    weight: 0
+    enabled: false
+    # api_keys: ["exa-key-1", "exa-key-2"]
+
+  # Exa MCP provider - free endpoint, no API key required
+  exa_mcp:
     weight: 15  # 15% chance of being selected
     enabled: true
 
-# Weights are relative - they determine probability of selection
+# Search weights are relative - they determine probability of selection
 # Higher weight = more likely to be selected
+# Providers with weight 0 stay available for explicit selection and fallback.
+# fetch_webpage also uses weighted auto selection for fetch-capable providers.
+# For fetch, positive configured weights are honored; otherwise built-in fetch defaults apply.
 # Adjust based on your usage patterns and quotas

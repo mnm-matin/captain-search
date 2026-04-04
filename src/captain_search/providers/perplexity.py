@@ -19,13 +19,17 @@ class PerplexityProvider(SearchProvider):
         Perplexity provides AI-powered search results.
         Requires Pro subscription (~$5/month credit).
         """
-        if not self.api_key:
-            raise ValueError("Perplexity API key is required")
+        api_key = self.choose_api_key(
+            error_message=(
+                "Perplexity API key is required. "
+                "Set PERPLEXITY_API_KEY or PERPLEXITY_API_KEYS."
+            ),
+        )
 
         client = await self.get_client()
 
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
@@ -43,21 +47,7 @@ class PerplexityProvider(SearchProvider):
         # Perplexity returns results in "results" key
         raw_results = data.get("results", [])
 
-        return self._normalize_results(raw_results)
-
-    def _normalize_results(self, raw_results: list[dict]) -> list[SearchResult]:
-        """Normalize Perplexity results to standard format."""
-        results = []
-        for item in raw_results:
-            try:
-                result = SearchResult(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    content=item.get("snippet") or item.get("content", ""),
-                    source=self.name,
-                )
-                if result.url:
-                    results.append(result)
-            except Exception:
-                continue
-        return results
+        return self._normalize_results(
+            raw_results,
+            content_keys=("snippet", "content"),
+        )

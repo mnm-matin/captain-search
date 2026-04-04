@@ -1,20 +1,17 @@
-"""Exa.ai Search provider via free MCP endpoint (no API key required)."""
+"""Exa.ai Search provider via MCP endpoint."""
 
 from __future__ import annotations
 
-import json
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from captain_search.providers.base import SearchProvider, SearchResult
+from captain_search.providers.mcp import extract_mcp_text_content
 
 EXA_MCP_URL = "https://mcp.exa.ai/mcp"
 
 
 class ExaMcpProvider(SearchProvider):
-    """Exa.ai Search provider using the free MCP endpoint.
-    
-    This provider uses Exa's free MCP endpoint and does NOT require an API key.
-    It's rate-limited but completely free to use.
-    """
+    """Exa.ai Search provider using Exa's MCP endpoint."""
 
     name = "exa_mcp"
 
@@ -24,10 +21,39 @@ class ExaMcpProvider(SearchProvider):
         
         Args:
             timeout: Request timeout in seconds
-            **kwargs: Ignored (for compatibility)
+            **kwargs: Optional api_key/api_keys for authenticated MCP requests
         """
-        # No API key required for MCP endpoint
-        super().__init__(api_key=None, timeout=timeout)
+        super().__init__(
+            api_key=kwargs.get("api_key"),
+            api_keys=kwargs.get("api_keys"),
+            timeout=timeout,
+        )
+
+    def _endpoint_url(self) -> str:
+        api_key = None
+        if self.api_key or self.api_keys:
+            api_key = self.choose_api_key(
+                error_message=(
+                    "Exa API key is required. Set EXA_API_KEY or EXA_API_KEYS to authenticate "
+                    "Exa MCP requests."
+                ),
+            )
+
+        if not api_key:
+            return EXA_MCP_URL
+
+        url_parts = urlsplit(EXA_MCP_URL)
+        query = dict(parse_qsl(url_parts.query, keep_blank_values=True))
+        query["exaApiKey"] = api_key
+        return urlunsplit(
+            (
+                url_parts.scheme,
+                url_parts.netloc,
+                url_parts.path,
+                urlencode(query),
+                url_parts.fragment,
+            )
+        )
 
     async def search(self, query: str, max_results: int = 10) -> list[SearchResult]:
         """
@@ -64,14 +90,10 @@ class ExaMcpProvider(SearchProvider):
             "Accept": "application/json, text/event-stream",
         }
 
-        response = await client.post(EXA_MCP_URL, json=mcp_request, headers=headers)
+        response = await client.post(self._endpoint_url(), json=mcp_request, headers=headers)
         response.raise_for_status()
 
-        # Parse SSE response - Exa returns "event: message\ndata: {...}"
-        text = response.text
-        results = self._parse_mcp_response(text)
-
-        return results
+        return self._parse_mcp_response(response.text)
 
     async def code_search(self, query: str, tokens_num: int = 5000) -> list[SearchResult]:
         """
@@ -104,32 +126,16 @@ class ExaMcpProvider(SearchProvider):
             "Accept": "application/json, text/event-stream",
         }
 
-        response = await client.post(EXA_MCP_URL, json=mcp_request, headers=headers)
+        response = await client.post(self._endpoint_url(), json=mcp_request, headers=headers)
         response.raise_for_status()
 
-        results = self._parse_mcp_response(response.text)
-        return results
+        return self._parse_mcp_response(response.text)
 
     def _parse_mcp_response(self, text: str) -> list[SearchResult]:
         """Parse the SSE response from Exa MCP endpoint."""
-        results = []
-        
-        # Find the JSON data in the SSE response
-        # Format is: "event: message\ndata: {...}"
-        for line in text.split("\n"):
-            if line.startswith("data: "):
-                json_str = line[6:]  # Remove "data: " prefix
-                try:
-                    data = json.loads(json_str)
-                    # Extract content from MCP response
-                    content = data.get("result", {}).get("content", [])
-                    for item in content:
-                        if item.get("type") == "text":
-                            text_content = item.get("text", "")
-                            results.extend(self._parse_search_results(text_content))
-                except json.JSONDecodeError:
-                    continue
-
+        results: list[SearchResult] = []
+        for text_content in extract_mcp_text_content(text):
+            results.extend(self._parse_search_results(text_content))
         return results
 
     def _parse_search_results(self, text: str) -> list[SearchResult]:

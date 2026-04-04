@@ -19,4 +19,4 @@ USER appuser
 
 # Default command - runs HTTP transport for remote MCP
 ENTRYPOINT ["captain-search"]
-CMD ["--transport", "http", "--port", "8000", "--host", "0.0.0.0"]
+CMD ["mcp", "--transport", "http", "--port", "8000", "--host", "0.0.0.0"]

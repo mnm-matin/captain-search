@@ -19,13 +19,14 @@ class SerperProvider(SearchProvider):
         Serper provides Google search results via a simple POST API.
         Free tier: 2,500 searches/month.
         """
-        if not self.api_key:
-            raise ValueError("Serper API key is required")
+        api_key = self.choose_api_key(
+            error_message="Serper API key is required. Set SERPER_API_KEY or SERPER_API_KEYS.",
+        )
 
         client = await self.get_client()
 
         headers = {
-            "X-API-KEY": self.api_key,
+            "X-API-KEY": api_key,
             "Content-Type": "application/json",
         }
 
@@ -42,21 +43,8 @@ class SerperProvider(SearchProvider):
         # Serper returns results in "organic" key
         raw_results = data.get("organic", [])
 
-        return self._normalize_results(raw_results)
-
-    def _normalize_results(self, raw_results: list[dict]) -> list[SearchResult]:
-        """Normalize Serper results to standard format."""
-        results = []
-        for item in raw_results:
-            try:
-                result = SearchResult(
-                    title=item.get("title", ""),
-                    url=item.get("link", ""),
-                    content=item.get("snippet", ""),
-                    source=self.name,
-                )
-                if result.url:
-                    results.append(result)
-            except Exception:
-                continue
-        return results
+        return self._normalize_results(
+            raw_results,
+            url_keys=("link",),
+            content_keys=("snippet",),
+        )

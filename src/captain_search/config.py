@@ -5,8 +5,28 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings
+
+
+def _parse_api_keys(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item and item.strip()]
+
+
+def _merge_api_keys(*values: str | list[str] | None) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        items = [value] if isinstance(value, str) else list(value or [])
+        for item in items:
+            cleaned = item.strip()
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            merged.append(cleaned)
+    return merged
 
 
 class ProviderConfig(BaseModel):
@@ -29,6 +49,7 @@ class ProvidersConfig(BaseModel):
     brave: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=33))
     tavily: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=17))
     perplexity: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=8))
+    parallel: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=0, enabled=True))
     jina: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=0, enabled=True))
     exa: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=0, enabled=False))  # Requires API key
     exa_mcp: ProviderConfig = Field(default_factory=lambda: ProviderConfig(weight=15, enabled=True))  # Free, no key needed
@@ -46,12 +67,25 @@ class Settings(BaseSettings):
 
     # API Keys from environment
     serper_api_key: str | None = Field(default=None, alias="SERPER_API_KEY")
+    serper_api_keys: str | None = Field(default=None, alias="SERPER_API_KEYS")
     brave_api_key: str | None = Field(default=None, alias="BRAVE_API_KEY")
+    brave_api_keys: str | None = Field(default=None, alias="BRAVE_API_KEYS")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
-    tavily_api_key_2: str | None = Field(default=None, alias="TAVILY_API_KEY_2")
+    tavily_api_keys: str | None = Field(default=None, alias="TAVILY_API_KEYS")
     perplexity_api_key: str | None = Field(default=None, alias="PERPLEXITY_API_KEY")
+    perplexity_api_keys: str | None = Field(default=None, alias="PERPLEXITY_API_KEYS")
+    parallel_api_key: str | None = Field(default=None, alias="PARALLEL_API_KEY")
+    parallel_api_keys: str | None = Field(default=None, alias="PARALLEL_API_KEYS")
     jina_api_key: str | None = Field(default=None, alias="JINA_API_KEY")
+    jina_api_keys: str | None = Field(default=None, alias="JINA_API_KEYS")
     exa_api_key: str | None = Field(default=None, alias="EXA_API_KEY")
+    exa_api_keys: str | None = Field(default=None, alias="EXA_API_KEYS")
+    morph_api_key: str | None = Field(default=None, alias="MORPH_API_KEY")
+    morph_base_url: str = Field(
+        default="https://api.morphllm.com",
+        alias="MORPH_BASE_URL",
+        validation_alias=AliasChoices("MORPH_BASE_URL", "MORPH_API_URL"),
+    )
 
     # Timeouts
     search_timeout_seconds: float = Field(default=30.0, alias="SEARCH_TIMEOUT_SECONDS")
@@ -67,6 +101,15 @@ class Settings(BaseSettings):
             "If unset/empty, the server runs without authentication. "
             "Clients should send: Authorization: Bearer <token>."
         ),
+    )
+    captain_search_log_enabled: bool = Field(default=True, alias="CAPTAIN_SEARCH_LOG_ENABLED")
+    captain_search_log_dir: str = Field(
+        default=str(Path.home() / ".captain-search" / "logs"),
+        alias="CAPTAIN_SEARCH_LOG_DIR",
+    )
+    captain_search_log_full_payloads: bool = Field(
+        default=False,
+        alias="CAPTAIN_SEARCH_LOG_FULL_PAYLOADS",
     )
 
 
@@ -110,34 +153,33 @@ class Config:
 
     def _apply_env_keys(self) -> None:
         """Apply API keys from environment to provider configs."""
-        if self.settings.serper_api_key:
-            self.providers.serper.api_key = self.settings.serper_api_key
+        for provider_name in ("serper", "brave", "tavily", "perplexity", "parallel", "jina", "exa"):
+            provider = getattr(self.providers, provider_name)
+            env_api_key = getattr(self.settings, f"{provider_name}_api_key")
+            env_api_keys = _parse_api_keys(getattr(self.settings, f"{provider_name}_api_keys"))
+            merged = _merge_api_keys(
+                env_api_key,
+                env_api_keys,
+                provider.api_key,
+                provider.api_keys,
+            )
+            provider.api_keys = merged
+            provider.api_key = merged[0] if merged else None
 
-        if self.settings.brave_api_key:
-            self.providers.brave.api_key = self.settings.brave_api_key
-
-        if self.settings.tavily_api_key:
-            self.providers.tavily.api_key = self.settings.tavily_api_key
-            # Add second key if available
-            if self.settings.tavily_api_key_2:
-                self.providers.tavily.api_keys = [
-                    self.settings.tavily_api_key,
-                    self.settings.tavily_api_key_2,
-                ]
-
-        if self.settings.perplexity_api_key:
-            self.providers.perplexity.api_key = self.settings.perplexity_api_key
-
-        if self.settings.jina_api_key:
-            self.providers.jina.api_key = self.settings.jina_api_key
-
-        if self.settings.exa_api_key:
-            self.providers.exa.api_key = self.settings.exa_api_key
+        exa_mcp = self.providers.exa_mcp
+        exa_mcp_keys = _merge_api_keys(
+            self.settings.exa_api_key,
+            _parse_api_keys(self.settings.exa_api_keys),
+            exa_mcp.api_key,
+            exa_mcp.api_keys,
+        )
+        exa_mcp.api_keys = exa_mcp_keys
+        exa_mcp.api_key = exa_mcp_keys[0] if exa_mcp_keys else None
 
     def get_enabled_providers(self) -> list[str]:
         """Get list of enabled providers with valid API keys."""
         enabled = []
-        for name in ["serper", "brave", "tavily", "perplexity", "exa"]:
+        for name in ["serper", "brave", "tavily", "perplexity", "parallel", "exa"]:
             provider = getattr(self.providers, name)
             if provider.enabled and (provider.api_key or provider.api_keys):
                 enabled.append(name)

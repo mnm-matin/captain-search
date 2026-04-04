@@ -19,13 +19,14 @@ class BraveProvider(SearchProvider):
         Brave provides web search results via a GET API.
         Free tier: 2,000 queries/month, 1 req/sec rate limit.
         """
-        if not self.api_key:
-            raise ValueError("Brave API key is required")
+        api_key = self.choose_api_key(
+            error_message="Brave API key is required. Set BRAVE_API_KEY or BRAVE_API_KEYS.",
+        )
 
         client = await self.get_client()
 
         headers = {
-            "X-Subscription-Token": self.api_key,
+            "X-Subscription-Token": api_key,
             "Accept": "application/json",
         }
 
@@ -43,21 +44,7 @@ class BraveProvider(SearchProvider):
         web_data = data.get("web", {})
         raw_results = web_data.get("results", [])
 
-        return self._normalize_results(raw_results)
-
-    def _normalize_results(self, raw_results: list[dict]) -> list[SearchResult]:
-        """Normalize Brave results to standard format."""
-        results = []
-        for item in raw_results:
-            try:
-                result = SearchResult(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    content=item.get("description", ""),
-                    source=self.name,
-                )
-                if result.url:
-                    results.append(result)
-            except Exception:
-                continue
-        return results
+        return self._normalize_results(
+            raw_results,
+            content_keys=("description",),
+        )
